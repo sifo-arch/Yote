@@ -14,10 +14,18 @@ class Yote(TwoPlayerGame):
         self.__empty_pos = 0
         # the board of the game is empty at the beginning
         self.__board = np.zeros((5, 6), dtype=np.int32)
+
+        # WHITE PLAYER ATTRIBUTES
         # the number of white stones in hand of the white player
         self.__num_of_white_stones = 12
+        # the number of black stones captured by the white player
+        self.__white_captures = 0
+
+        # BLACK PLAYER ATTRIBUTES
         # the number of black stones in hand of the black player
         self.__num_of_black_stones = 12
+        # the numbe rof white stones captured by the black player
+        self.__black_captures = 0
 
 
     def __empty_board_positions(self):
@@ -165,8 +173,45 @@ class Yote(TwoPlayerGame):
 
 
     def make_move(self, move):
-        pass
+        if 'h' in move:
+            i, j = move[0]
+            if self.nplayer == 1:
+                self.__board[i, j] = self.__white_pos
+                self.__num_of_white_stones -= 1
+            else:
+                self.__board[i, j] = self.__black_pos
+                self.__num_of_black_stones -= 1
+        elif 'b' in move:
+            (src_i, src_j), (des_i, des_j) = move[:2]
+            self.__board[src_i, src_j] = self.__empty_pos
+            if self.nplayer == 1:
+                self.__board[des_i, des_j] = self.__white_pos
+            else:
+                self.__board[des_i, des_j] = self.__black_pos
+        else:
+            src_i, src_j = move[0]
+            self.__board[src_i, src_j] = self.__empty_pos
 
+            des_i, des_j = move[1]
+
+            captured_i, captured_j = move[3]
+            self.__board[captured_i, captured_j] = self.__empty_pos
+
+            if self.nplayer == 1:
+                self.__board[des_i, des_j] = self.__white_pos
+                self.__white_captures += 1
+            else:
+                self.__board[des_i, des_j] = self.__black_pos
+                self.__black_captures += 1
+
+            if len(move) == 5:
+                to_throw_i, to_throw_j = move[4]
+                self.__board[to_throw_i, to_throw_j] = self.__empty_pos
+                if self.nplayer == 1:
+                    self.__white_captures += 1
+                else:
+                    self.__black_captures += 1
+            
 
     def is_over(self):
         pass
