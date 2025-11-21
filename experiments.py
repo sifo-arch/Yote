@@ -19,6 +19,7 @@ class Yote(TwoPlayerGame):
         # the number of black stones in hand of the black player
         self.__num_of_black_stones = 12
 
+
     def __empty_board_positions(self):
         """
         Returns the indices of empty positions on the board
@@ -62,12 +63,12 @@ class Yote(TwoPlayerGame):
         return empty_adjacents
     
 
-    def __get_my_stones_positions(self):
+    def __get_player_stones_positions(self, nplayer):
         """
         Returns the positions on the board of the stones of the current player
         """
         positions = None
-        if self.nplayer == 1:
+        if nplayer == 1:
             positions = np.where(self.__board == self.__white_pos)
         else:
             positions = np.where(self.__board == self.__black_pos)
@@ -90,6 +91,10 @@ class Yote(TwoPlayerGame):
     
 
     def __possible_captures_of_a_stone(self, stone_pos):
+        """
+        Returns possible captures of a stone based on its position on the board.
+        The function returns the destination position after jumping and the position of the opponent stone to be captured.
+        """
         opponent_adjacent_stones = self.__get_opponent_adjacent_stones(stone_pos)
         poss_captures = []
         for direction in opponent_adjacent_stones:
@@ -109,11 +114,9 @@ class Yote(TwoPlayerGame):
                 dest_i_after_capture = i
                 dest_j_after_capture = j + 1
             # conditions must be satisfied to allow capturing
-            cond1 = dest_i_after_capture is not None
-            cond2 = dest_j_after_capture is not None
-            cond3 = self.__board[dest_i_after_capture, dest_j_after_capture] == self.__empty_pos
-            if cond1 and cond2 and cond3:
-                poss_captures.append((dest_i_after_capture, dest_j_after_capture))
+            if dest_i_after_capture is not None and dest_j_after_capture is not None:
+                if self.__board[dest_i_after_capture, dest_j_after_capture] == self.__empty_pos:
+                    poss_captures.append(((dest_i_after_capture, dest_j_after_capture), (i, j)))
         return poss_captures
 
 
@@ -128,18 +131,34 @@ class Yote(TwoPlayerGame):
         poss_moves.extend(empty_board_positions)
 
         # rule-2: if the current player has stones that were previously placed on the board, he/she could move them orthogonally if possible.
-        my_stones_positions = self.__get_my_stones_positions()
+        my_stones_positions = self.__get_player_stones_positions(self.nplayer)
         empty_positions_to_move_stones = []
         for stone_pos in my_stones_positions:
-            empty_positions_to_move_stones.extend([((i, j), 'b') for i, j in self.__get_stone_empty_adjacents(stone_pos)])  # b stands for board, it means a player can move one of his/her stones that are already on the board to another position.
+            # (stone_pos, (i, j), 'b'): the format of a possible move according to rule-2
+            # b stands for board, it means the current player can move his/her stone in the position stone_pos on the board to the position (i, j).
+            empty_positions_to_move_stones.extend([(stone_pos, (i, j), 'b') for i, j in self.__get_stone_empty_adjacents(stone_pos)])  
         
         poss_moves.extend(empty_positions_to_move_stones)
 
         # rule-3: capturing (see the section 'Rules' in https://en.wikipedia.org/wiki/Yot%C3%A9)
         possible_captures = []
+        opponent = 2 if self.nplayer == 1 else 1
         for stone_pos in my_stones_positions:
-            possible_captures.extend([((i, j), 'c') for i, j in self.__possible_captures_of_a_stone(stone_pos)])  # c stands for capture, it means a player can capture an opponent's stone on the board according to rule-3
-        
+            # (stone_pos, (i, j), 'c', (l, m)): the format of a possible move according to rule-3 (without choosing an opponent's stone on the board to throw)
+            # c stands for capture, it means the current player can move his/her stone on the position stone_pos on the board to the position (i, j) by capturing the opponent's stone which is on the position (l, m)
+            stone_poss_captures = [(stone_pos, (i, j), 'c', (l, m)) for (i, j), (l, m) in self.__possible_captures_of_a_stone(stone_pos)]
+            if len(stone_poss_captures) > 0:
+                # the opponent's stones on the board, one of which can be chosen to throw
+                opponent_stones_positions = self.__get_player_stones_positions(nplayer=opponent)
+                extended_stone_poss_captures = []
+                if len(opponent_stones_positions) > 0:
+                    # the new format becomes becomes: (stone_pos, (i, j), 'c', (l, m), (u, v)); where (u, v) is the position on the board of an opponent's stone which can be chosen to throw
+                    extended_stone_poss_captures.extend([capture + (to_throw,) for capture in stone_poss_captures for to_throw in opponent_stones_positions if to_throw != capture[3]])
+                if len(extended_stone_poss_captures) > 0:
+                    possible_captures.extend(extended_stone_poss_captures)
+                else:
+                    possible_captures.extend(stone_poss_captures)
+            
         poss_moves.extend(possible_captures)
         
         return poss_moves
