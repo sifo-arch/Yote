@@ -1,10 +1,8 @@
-from easyAI import TwoPlayerGame
 import numpy as np
 
 
-class Yote(TwoPlayerGame):
-    def __init__(self, players):
-        self.players = players
+class Yote:
+    def __init__(self):
         # the white player is always the first on the list of players and the first to play
         self.nplayer = 1
         
@@ -26,6 +24,46 @@ class Yote(TwoPlayerGame):
         self.__num_of_black_stones = 12
         # the numbe rof white stones captured by the black player
         self.__black_captures = 0
+
+
+    @property
+    def white_pos(self):
+        return self.__white_pos
+    
+
+    @property
+    def black_pos(self):
+        return self.__black_pos
+    
+
+    @property
+    def empty_pos(self):
+        return self.__empty_pos
+    
+
+    @property
+    def board(self):
+        return self.__board
+    
+
+    @property
+    def in_hand_white_stones(self):
+        return self.__num_of_white_stones
+    
+
+    @property
+    def in_hand_black_stones(self):
+        return self.__num_of_black_stones
+    
+
+    @property
+    def white_captures(self):
+        return self.__white_captures
+    
+
+    @property
+    def black_captures(self):
+        return self.__black_captures
 
 
     def __empty_board_positions(self):
@@ -58,7 +96,7 @@ class Yote(TwoPlayerGame):
         return dict(zip(keys, adjacents)) if return_dict else adjacents
     
 
-    def __get_stone_empty_adjacents(self, stone_pos, return_dict=None):
+    def __get_stone_empty_adjacents(self, stone_pos):
         """
         Returns the adjacent positions of a stone that are empty
         """
@@ -172,7 +210,7 @@ class Yote(TwoPlayerGame):
         return poss_moves
 
 
-    def make_move(self, move):
+    def __make_move(self, move):
         if 'h' in move:
             i, j = move[0]
             if self.nplayer == 1:
@@ -211,17 +249,40 @@ class Yote(TwoPlayerGame):
                     self.__white_captures += 1
                 else:
                     self.__black_captures += 1
-            
+
+
+    def play_move(self, move):
+        self.__make_move(move)
+        # change the turn to the next player
+        self.nplayer = 2 if self.nplayer == 1 else 1
+
 
     def is_over(self):
-        pass
-
+        """
+        Checks whether the match has finished or not and decides the winner if possible.
+        """
+        # if either the white or the black player captures all the stones of the opponent, then the game is finihed, and (True, num_of_winner) is returned
+        # if the current player can not make any move, then the opponent wins, and (True, num_of_winner) is returned.
+        # else the game is not over.
+        if self.nplayer == 1:   
+            if self.__white_captures == 12:
+                return True, 1
+            if len(self.possible_moves()) == 0:
+                return True, 2
+            return False, None
+        if self.nplayer == 2:
+            if self.__black_captures == 12:
+                return True, 2
+            if len(self.possible_moves()) == 0:
+                return True, 1
+            return False, None
+        
 
     def test(self):
         print(self.__empty_board_positions())
     
 
 if __name__ == "__main__":
-    game = Yote(None)
+    game = Yote()
     game.test()
         
