@@ -1,1 +1,3 @@
 .venv
+__pycache__
+pygame_experiments.py
