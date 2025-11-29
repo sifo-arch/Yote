@@ -1,4 +1,5 @@
 import numpy as np
+from __future__ import annotations
 
 
 class Yote:
@@ -24,6 +25,9 @@ class Yote:
         self.__num_of_black_stones = 12
         # the numbe rof white stones captured by the black player
         self.__black_captures = 0
+
+        # scoring (aka evaluation function) weights
+        self.__scoring_weights = np.array([0.4, 0.25, 0.15, 0.12, 0.08])
 
 
     @property
@@ -265,24 +269,118 @@ class Yote:
         # if the current player can not make any move, then the opponent wins, and (True, num_of_winner) is returned.
         # else the game is not over.
         if self.nplayer == 1:   
-            if self.__white_captures == 12:
-                return True, 1
-            if len(self.possible_moves()) == 0:
+            if self.__black_captures == 12 or len(self.possible_moves()) == 0:
                 return True, 2
             return False, None
         if self.nplayer == 2:
-            if self.__black_captures == 12:
-                return True, 2
-            if len(self.possible_moves()) == 0:
+            if self.__white_captures == 12 or len(self.possible_moves()) == 0:
                 return True, 1
             return False, None
+    
+
+    def scoring(self):
+        possible_moves = self.possible_moves()
+        criteria = np.empty(5)
+        criteria[1] = len(tuple(filter(lambda move: 'c' in move, possible_moves)))
+        criteria[2] = len(possible_moves) - criteria[1]
+        if self.nplayer == 1:
+            criteria[0] = self.__white_captures
+            criteria[3] = 12 - self.__num_of_white_stones
+            criteria[4] = self.__num_of_white_stones
+        else:
+            criteria[0] = self.__black_captures
+            criteria[3] = 12 - self.__num_of_black_stones
+            criteria[4] = self.__num_of_black_stones
         
+        return np.matmul(self.__scoring_weights, criteria)
+
+
+    def restore(self, state: GameState):
+        self.nplayer = state.turn
+        self.__board = state.board
+        self.__num_of_white_stones = state.white_stones_in_hand
+        self.__num_of_black_stones = state.black_stones_in_hand
+        self.__white_captures = state.white_captures
+        self.__black_captures = state.black_captures
+
 
     def test(self):
         print(self.__empty_board_positions())
     
 
+class GameState:
+    def __init__(self, game: Yote):
+        self.__turn = game.nplayer
+        self.__board = game.board.copy()
+        self.__white_stones_in_hand = game.in_hand_white_stones
+        self.__black_stones_in_hand = game.in_hand_black_stones
+        self.__white_captures = game.white_captures
+        self.__black_captures = game.black_captures
+        self.__scoring = game.scoring()
+
+    
+    @property
+    def turn(self):
+        return self.__turn
+    
+
+    @property
+    def board(self):
+        return self.__board
+    
+
+    @property
+    def white_stones_in_hand(self):
+        return self.__white_stones_in_hand
+    
+
+    @property
+    def black_stones_in_hand(self):
+        return self.__black_stones_in_hand
+    
+
+    @property
+    def white_captures(self):
+        return self.__white_captures
+    
+
+    @property
+    def black_captures(self):
+        return self.__black_captures
+    
+
+    @property
+    def scoring(self):
+        return self.__scoring
+    
+
+class History:
+    def __init__(self):
+        self.__history = []
+        self.__counter = 0
+
+
+    def __assert_history_is_not_empty(self):
+        assert self.__counter > 0, "You can't pull from an empty History"
+
+    
+    def push(self, state: GameState):
+        self.__history.append(state)
+        self.__counter += 1
+    
+    
+    def pull(self):
+        self.__assert_history_is_not_empty()
+        return self.__history[-1]
+    
+
+    def pop(self):
+        self.__assert_history_is_not_empty()
+        state = self.__history.pop()
+        self.__counter -= 1
+        return state
+
+
 if __name__ == "__main__":
     game = Yote()
     game.test()
-        
