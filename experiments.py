@@ -1,5 +1,6 @@
-import numpy as np
 from __future__ import annotations
+import numpy as np
+from math import inf
 
 
 class Yote:
@@ -267,7 +268,7 @@ class Yote:
         """
         # if either the white or the black player captures all the stones of the opponent, then the game is finihed, and (True, num_of_winner) is returned
         # if the current player can not make any move, then the opponent wins, and (True, num_of_winner) is returned.
-        # else the game is not over.
+        # else the game is not over, and (Fasle, None) is returned
         if self.nplayer == 1:   
             if self.__black_captures == 12 or len(self.possible_moves()) == 0:
                 return True, 2
@@ -297,7 +298,7 @@ class Yote:
 
     def restore(self, state: GameState):
         self.nplayer = state.turn
-        self.__board = state.board
+        self.__board = state.board.copy()
         self.__num_of_white_stones = state.white_stones_in_hand
         self.__num_of_black_stones = state.black_stones_in_hand
         self.__white_captures = state.white_captures
@@ -381,6 +382,129 @@ class History:
         return state
 
 
+class Player:
+    def __init__(self, turn: int):
+        self.__turn = turn
+
+
+    @property
+    def turn(self):
+        return self.__turn
+
+
+class AI(Player):
+    def __alpha_beta_pruning(self, game: Yote, depth: int, alpha: float, beta: float, max_player: bool):
+        if depth == 0 or game.is_over()[0]:
+            return game.scoring()
+        
+        original_state = GameState(game)  # saving the first game state which was passed as argument
+        if max_player:  # the turn is to the max player
+            value = -inf
+            for move in game.possible_moves():
+                game.play_move(move)
+                value = max(value, self.__alpha_beta_pruning(game, depth - 1, alpha, beta, False))
+                game.restore(original_state)  # restore the original state for the next iteration
+                alpha = max(alpha, value)
+                if alpha >= beta:
+                    break  # beta-cutoff
+
+            return value
+        else:
+            value = inf
+            for move in game.possible_moves():
+                game.play_move(move)
+                value = min(value, self.__alpha_beta_pruning(game, depth - 1, alpha, beta, True))
+                game.restore(original_state)  # restore the original state for the next iteration
+                beta = min(beta, value)
+                if beta <= alpha:
+                    break  # alpha-cutoff
+
+            return value
+
+
+    def choose_best_move(self, game: Yote, depth: int, max_player: bool):
+        best_move = None
+        best_value = None
+        original_state = GameState(game)
+        if max_player:  # the AI is playing as max player
+            best_value = -inf
+            for move in game.possible_moves():
+                game.play_move(move)
+                value = self.__alpha_beta_pruning(game, depth - 1, -inf, inf, False)
+                game.restore(original_state)
+                if value > best_value:
+                    best_value = value
+                    best_move = move
+        else:  # the AI is playing as a min player
+            best_value = inf
+            for move in game.possible_moves():
+                game.play_move(move)
+                value = self.__alpha_beta_pruning(game, depth - 1, -inf, inf, True)
+                game.restore(original_state)
+                if value < best_value:
+                    best_value = value
+                    best_move = move
+        return best_move, best_value
+    
+
+class HumanPlayer(Player):
+    def choose_move(self, possible_moves: list):
+        for i, move in enumerate(possible_moves):
+            print(f"Move[{i}]: {move}")
+        move_index = int(input("Enter a move: "))
+        return move_index
+
+
 if __name__ == "__main__":
+    DEPTH = 4  # for the AI
+
+    history = History()  # the history of the game
     game = Yote()
-    game.test()
+    history.push(GameState(game))  # save the initial state of the game in history
+
+    human = HumanPlayer(1)  # white player (max player)
+    ai = AI(2)  # black player (min player)
+
+    winner = None  # to know who winnes the game
+    while True:
+        # white player turn
+        print('White player turn:')
+        print(game.board)
+        print(f'Available stones in hand: {game.in_hand_white_stones}')
+        possible_moves = game.possible_moves()
+        index = human.choose_move(possible_moves)
+        game.play_move(possible_moves[index])
+        print(f'The white player has played the Move[{index}]')
+        print('New game state:')
+        print(game.board)
+        print('\n\n')
+
+        history.push(GameState(game))  # save the new state of the game in history
+
+        # check the end of the game
+        is_over, winner = game.is_over()
+        if is_over:
+            break
+
+        # black player turn
+        print('Black player turn:')
+        print(game.board)
+        print(f'Available stones in hand: {game.in_hand_black_stones}')
+        move, value = ai.choose_best_move(game, DEPTH, False)
+        print(move)
+        print(value)
+        game.play_move(move)
+        print('The black player have made their move')
+        print('New game state:')
+        print(game.board)
+        print('\n\n')
+
+        history.push(GameState(game))  # save the new state of the game in history
+
+        # check the end of the game
+        is_over, winner = game.is_over()
+        if is_over:
+            break
+    
+    winner_name = 'AI' if winner == ai.turn else 'Human'
+    print(f"{winner_name} won the game!")
